@@ -9,12 +9,50 @@
 
 var express = require('express'); // Express web server framework
 var request = require('request'); // "Request" library
+var mysql = require("mysql");
 var querystring = require('querystring');
 var cookieParser = require('cookie-parser');
 
-var client_id = 'CLIENT_ID'; // Your client id
-var client_secret = 'CLIENT_SECRET'; // Your secret
-var redirect_uri = 'REDIRECT_URI'; // Your redirect uri
+var client_id = '3036ac0c826f4f5e8b4a8c1a1bc8278d'; // Your client id
+var client_secret = '7ce92e60920d43f1b6a48e162422fdeb'; // Your secret
+var redirect_uri = 'http://localhost:8888/callback'; // Your redirect uri
+
+var user_id;
+
+/**
+ * Database names
+ * @type {string}
+ */
+var db_username = "application";
+var db_password = "y7F!z6C7U#EKWsI8";
+var db_name = "application";
+var tab_users_name = "users";
+
+/**
+ * Connect to database
+ */
+var db_connection = mysql.createConnection({
+  host: "localhost",
+  user: db_username,
+  password: db_password
+})
+
+db_connection.connect(function(err){
+  if(err){
+    console.log('Error connecting to Db');
+    return;
+  }
+  console.log('Connection established');
+  db_connection.query("USE " + db_name + ";", function(err, result) {
+
+  })
+});
+
+//db_connection.end(function(err) {
+  // The connection is terminated gracefully
+  // Ensures all previously enqueued queries are still
+  // before sending a COM_QUIT packet to the MySQL server.
+//});
 
 /**
  * Generates a random string containing numbers and letters
@@ -96,9 +134,21 @@ app.get('/callback', function(req, res) {
           json: true
         };
 
+        //console.log(body);
+
         // use the access token to access the Spotify Web API
         request.get(options, function(error, response, body) {
-          console.log(body);
+          console.log(body.id);
+          var post = {spotify_id: body.id};
+          var query1 = db_connection.query("SELECT * FROM " + tab_users_name + " WHERE ?", post, function(err, result, fields) {
+            if (result.length == 0) {
+              console.log("create new");
+              var query2 = db_connection.query('INSERT INTO ' + tab_users_name + ' SET ?', post, function (err, result) {
+                //TODO: catch exception
+              });
+            }
+          })
+          user_id = body.id;
         });
 
         // we can also pass the token to the browser to make requests from there
