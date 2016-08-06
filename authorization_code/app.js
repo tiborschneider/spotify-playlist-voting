@@ -12,12 +12,17 @@ var request = require('request'); // "Request" library
 var mysql = require("mysql");
 var querystring = require('querystring');
 var cookieParser = require('cookie-parser');
+var spotifyWebApi = require('spotify-web-api-node');
 
 var client_id = '3036ac0c826f4f5e8b4a8c1a1bc8278d'; // Your client id
 var client_secret = '7ce92e60920d43f1b6a48e162422fdeb'; // Your secret
 var redirect_uri = 'http://localhost:8888/callback'; // Your redirect uri
 
-var user_id;
+var spotifyApi = new spotifyWebApi({
+  clientId : client_id,
+  clientSecret : client_secret,
+  redirectUri : redirect_uri
+});
 
 /**
  * Database names
@@ -27,6 +32,8 @@ var db_username = "application";
 var db_password = "y7F!z6C7U#EKWsI8";
 var db_name = "application";
 var tab_users_name = "users";
+
+var user_id;
 
 /**
  * Connect to database
@@ -125,6 +132,8 @@ app.get('/callback', function(req, res) {
     request.post(authOptions, function(error, response, body) {
       if (!error && response.statusCode === 200) {
 
+        spotifyApi.setAccessToken(body.access_token);
+
         var access_token = body.access_token,
             refresh_token = body.refresh_token;
 
@@ -144,19 +153,27 @@ app.get('/callback', function(req, res) {
             if (result.length == 0) {
               console.log("create new");
               var query2 = db_connection.query('INSERT INTO ' + tab_users_name + ' SET ?', post, function (err, result) {
-                //TODO: catch exception
+
               });
+            } else {
+              console.log("user found");
             }
+
+            //save Access Token to spotify wrapper
+            user_id = body.id;
+
           })
-          user_id = body.id;
         });
 
+        console.log("done")
+
         // we can also pass the token to the browser to make requests from there
-        res.redirect('/#' +
+        res.redirect('/showPlaylist/#' +
           querystring.stringify({
             access_token: access_token,
             refresh_token: refresh_token
-          }));
+          })
+        );
       } else {
         res.redirect('/#' +
           querystring.stringify({
@@ -166,6 +183,16 @@ app.get('/callback', function(req, res) {
     });
   }
 });
+
+app.get('/showPlaylist', function(req, res) {
+  spotifyApi.getUserPlaylists('tiborjaner')
+      .then(function(data) {
+        console.log('Retrieved playlists', data.body);
+      },function(err) {
+        console.log('Something went wrong!', err);
+      });
+});
+
 
 app.get('/refresh_token', function(req, res) {
 
@@ -190,6 +217,7 @@ app.get('/refresh_token', function(req, res) {
     }
   });
 });
+
 
 console.log('Listening on 8888');
 app.listen(8888);
